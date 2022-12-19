@@ -3,11 +3,27 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
+	"strings"
 )
 
-const (
-	EntLump = 0 // the location in the header
-)
+// Possible fields we care about
+type Entity struct {
+	Classname  string
+	Message    string
+	Sky        string
+	Origin     string
+	Angle      string
+	Spawnflags string
+	Noise      string
+	Light      string
+	Targetname string
+	Model      string
+	Height     string
+	Wait       string
+	Speed      string
+	Accel      string
+}
 
 /**
  * Find the entity lump in the BSP.
@@ -46,9 +62,45 @@ func GetEntityLump(f *os.File, offset int, length int) []byte {
 	return lump
 }
 
-func ParseEntities() {
-	bspname := os.Args[1]
-	bsp, err := os.Open(bspname)
+func BreakupEntityLump(lump []byte) []Entity {
+	ents := []Entity{}
+	current := Entity{}
+	inside := false
+	lines := strings.Split(string(lump), "\n")
+	for _, line := range lines {
+		if !inside && line == "{" {
+			inside = true
+			current = Entity{}
+			continue
+		}
+
+		if inside && line == "}" {
+			inside = false
+			ents = append(ents, current)
+			continue
+		}
+
+		if inside {
+			re, err := regexp.Compile(" ")
+			check(err)
+			keyval := re.Split(line, 2)
+			key := keyval[0][1 : len(keyval[0])-1]
+			val := keyval[1][1 : len(keyval[1])-1]
+			fmt.Printf("%s = %s\n", key, val)
+
+			switch key {
+			case "classname":
+				current.Classname = val
+			case "origin":
+				current.Origin = val
+			}
+		}
+	}
+	return ents
+}
+
+func ParseEntities(file string) {
+	bsp, err := os.Open(file)
 	check(err)
 
 	header := make([]byte, HeaderLen)
@@ -58,6 +110,7 @@ func ParseEntities() {
 	VerifyHeader(header)
 
 	offset, length := LocateEntityLump(header)
-	ents := GetEntityLump(bsp, offset, length)
-	fmt.Println(string(ents))
+	lump := GetEntityLump(bsp, offset, length)
+	ents := BreakupEntityLump(lump)
+	fmt.Println(ents)
 }
