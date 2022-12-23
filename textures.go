@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"sort"
 )
@@ -80,28 +79,17 @@ func Deduplicate(in []string) []string {
 /**
  *
  */
-func ParseTextures(file string) {
+func (bspmap *BSPMap) ParseTextures() {
 	textures := []string{}
 
-	bsp, err := os.Open(file)
-	check(err)
+	bsp := bspmap.FilePointer
 
-	header := make([]byte, HeaderLen)
-	_, err = bsp.Read(header)
-	check(err)
-
-	VerifyHeader(header)
-
-	offset, length := LocateTextureLump(header)
+	offset, length := LocateTextureLump(bspmap.Header)
 	texturelump := GetTextureLump(bsp, offset, length)
 	textures = append(textures, GetTextures(texturelump)...)
-
-	bsp.Close()
 
 	dedupedtextures := Deduplicate(textures)
 	sort.Strings(dedupedtextures)
 
-	for _, t := range dedupedtextures {
-		fmt.Println(t)
-	}
+	bspmap.Textures = dedupedtextures
 }

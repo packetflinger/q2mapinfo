@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -86,7 +85,6 @@ func BreakupEntityLump(lump []byte) []Entity {
 			keyval := re.Split(line, 2)
 			key := keyval[0][1 : len(keyval[0])-1]
 			val := keyval[1][1 : len(keyval[1])-1]
-			fmt.Printf("%s = %s\n", key, val)
 
 			switch key {
 			case "classname":
@@ -99,18 +97,24 @@ func BreakupEntityLump(lump []byte) []Entity {
 	return ents
 }
 
-func ParseEntities(file string) {
-	bsp, err := os.Open(file)
-	check(err)
+// count up how many of each type we have
+func AnalyzeEntities(ents []Entity) map[string]int {
+	m := make(map[string]int)
 
-	header := make([]byte, HeaderLen)
-	_, err = bsp.Read(header)
-	check(err)
+	for _, ent := range ents {
+		m[ent.Classname]++
+	}
 
-	VerifyHeader(header)
+	return m
+}
 
-	offset, length := LocateEntityLump(header)
+func (bspmap *BSPMap) ParseEntities() {
+	bsp := bspmap.FilePointer
+
+	offset, length := LocateEntityLump(bspmap.Header)
 	lump := GetEntityLump(bsp, offset, length)
 	ents := BreakupEntityLump(lump)
-	fmt.Println(ents)
+
+	bspmap.Entities = ents
+	bspmap.EntCounts = AnalyzeEntities(ents)
 }
