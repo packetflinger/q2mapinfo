@@ -1,4 +1,4 @@
-package main
+package common
 
 import (
 	"os"
@@ -48,11 +48,11 @@ func LocateEntityLump(header []byte) (int, int) {
  */
 func GetEntityLump(f *os.File, offset int, length int) []byte {
 	_, err := f.Seek(int64(offset), 0)
-	check(err)
+	Check(err)
 
 	lump := make([]byte, length)
 	read, err := f.Read(lump)
-	check(err)
+	Check(err)
 
 	if read != length {
 		panic("reading entity lump: hit EOF")
@@ -81,7 +81,7 @@ func BreakupEntityLump(lump []byte) []Entity {
 
 		if inside {
 			re, err := regexp.Compile(" ")
-			check(err)
+			Check(err)
 			keyval := re.Split(line, 2)
 			key := keyval[0][1 : len(keyval[0])-1]
 			val := keyval[1][1 : len(keyval[1])-1]

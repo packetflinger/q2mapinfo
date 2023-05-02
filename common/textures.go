@@ -1,14 +1,13 @@
-package main
+package common
 
 import (
 	"os"
 	"sort"
+	"strings"
 )
 
-/**
- * Find the offset and the length of the texture lump
- * in the BSP file
- */
+// Find the offset and the length of the texture lump
+// in the BSP file
 func LocateTextureLump(header []byte) (int, int) {
 	var offsets [19]int
 	var lengths [19]int
@@ -24,16 +23,14 @@ func LocateTextureLump(header []byte) (int, int) {
 	return offsets[TextureLump] + HeaderLen, lengths[TextureLump]
 }
 
-/**
- * Get a slice of the just the texture lump from the map file
- */
+// Get a slice of the just the texture lump from the map file
 func GetTextureLump(f *os.File, offset int, length int) []byte {
 	_, err := f.Seek(int64(offset), 0)
-	check(err)
+	Check(err)
 
 	lump := make([]byte, length)
 	read, err := f.Read(lump)
-	check(err)
+	Check(err)
 
 	if read != length {
 		panic("reading texture lump: hit EOF")
@@ -42,10 +39,8 @@ func GetTextureLump(f *os.File, offset int, length int) []byte {
 	return lump
 }
 
-/**
- * Loop through all the textures in the lump building a
- * slice of just the texture names
- */
+// Loop through all the textures in the lump building a
+// slice of just the texture names
 func GetTextures(lump []byte) []string {
 	size := len(lump) / TextureLen
 	var textures []string
@@ -54,15 +49,13 @@ func GetTextures(lump []byte) []string {
 		pos += 40
 		texture := lump[pos : pos+32]
 		pos += 32 + 4
-		textures = append(textures, string(texture))
+		textures = append(textures, strings.Trim(string(texture), "\x00"))
 	}
 
 	return textures
 }
 
-/**
- * Remove any duplipcates
- */
+// Remove any duplipcates
 func Deduplicate(in []string) []string {
 	keys := make(map[string]bool)
 	list := []string{}

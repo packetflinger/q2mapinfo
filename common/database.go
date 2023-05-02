@@ -1,37 +1,45 @@
-package main
+package common
 
 import (
 	"database/sql"
+	"log"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func (bsp *BSPMap) OpenDatabase() {
-	db, err := sql.Open("sqlite3", *Databasefile)
+func OpenDatabase(dbfile string) *sql.DB {
+	db, err := sql.Open("sqlite3", dbfile)
 	if err != nil {
 		panic(err)
 	}
 
-	bsp.Database = db
+	//bsp.Database = db
+	return db
 }
 
 func (bsp *BSPMap) CloseDatabase() {
 	bsp.Database.Close()
 }
 
-func (bsp *BSPMap) DBAddTexture(t string) {
+func (bsp *BSPMap) DBAddTexture(t string) error {
 	_, err := bsp.Database.Exec("INSERT INTO texture (map, texture) VALUES (?,?)", bsp.ID, t)
-	check(err)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (bsp *BSPMap) DBAddEntity(c string, q int) {
+func (bsp *BSPMap) DBAddEntity(c string, q int) error {
 	_, err := bsp.Database.Exec("INSERT INTO entity (map, classname, quantity) VALUES (?,?,?)", bsp.ID, c, q)
-	check(err)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (bsp *BSPMap) GetMapFromHash() int {
 	res, err := bsp.Database.Query("SELECT id FROM map WHERE hash = ? LIMIT 1", bsp.Hash)
-	check(err)
+	Check(err)
 	defer res.Close()
 
 	id := 0
@@ -45,28 +53,38 @@ func (bsp *BSPMap) GetMapFromHash() int {
 	return id
 }
 
-func (bsp *BSPMap) InsertTextures() {
-	// first delete any textures we already have for this map
-	_, err := bsp.Database.Exec("DELETE FROM texture WHERE map = ?", bsp.ID)
-	check(err)
-
-	for _, t := range bsp.Textures {
-		bsp.DBAddTexture(t)
+func (bsp *BSPMap) StartTransaction() (*sql.Tx, error) {
+	t, err := bsp.Database.Begin()
+	if err != nil {
+		log.Println(err)
+		return nil, err
 	}
+	return t, nil
 }
 
-func (bsp *BSPMap) InsertEntities() {
-	_, err := bsp.Database.Exec("DELETE FROM entity WHERE map = ?", bsp.ID)
-	check(err)
-
-	for k, v := range bsp.EntCounts {
-		bsp.DBAddEntity(k, v)
+func (bsp *BSPMap) InsertTextures() error {
+	for _, t := range bsp.Textures {
+		e := bsp.DBAddTexture(t)
+		if e != nil {
+			return e
+		}
 	}
+	return nil
+}
+
+func (bsp *BSPMap) InsertEntities() error {
+	for k, v := range bsp.EntCounts {
+		e := bsp.DBAddEntity(k, v)
+		if e != nil {
+			return e
+		}
+	}
+	return nil
 }
 
 func (bsp *BSPMap) GetTexture_test() string {
 	row, err := bsp.Database.Query("SELECT texture FROM texture WHERE id = 1045 LIMIT 1")
-	check(err)
+	Check(err)
 
 	defer row.Close()
 	t := ""
